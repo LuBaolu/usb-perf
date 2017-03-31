@@ -1,5 +1,5 @@
 #!/bin/bash
-PWD=`pwd`
+WHERE=`pwd`
 
 nice -n -20 ../ffs-test &
 sleep 2

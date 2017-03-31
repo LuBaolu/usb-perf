@@ -1,5 +1,5 @@
 #!/bin/bash
-PWD=`pwd`
+WHERE=`pwd`
 
 modprobe libcomposite
 cd /sys/kernel/config/usb_gadget
@@ -16,6 +16,6 @@ mkdir configs/c.1/strings/0x409
 echo "config1" > configs/c.1/strings/0x409/configuration
 mkdir functions/ffs.usb0
 ln -s functions/ffs.usb0 configs/c.1/
-cd $PWD
+cd $WHERE
 mkdir -p ffs
 mount usb0 ffs -t functionfs
