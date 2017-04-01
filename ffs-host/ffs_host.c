@@ -106,7 +106,7 @@ static void read_callback(struct libusb_transfer *transfer)
 
 
 static struct libusb_transfer *
-create_transfer(libusb_device_handle *handle, size_t length, bool out)
+create_transfer(libusb_device_handle *handle, size_t length, bool out, bool isoc)
 {
 	struct libusb_transfer *transfer;
 	unsigned char *buf;
@@ -118,7 +118,7 @@ create_transfer(libusb_device_handle *handle, size_t length, bool out)
 		/* Bulk OUT */
 		libusb_fill_bulk_transfer(transfer,
 			handle,
-			0x01 /*ep*/,
+			isoc ? 0x02 : 0x01,
 			buf,
 			length,
 			read_callback,
@@ -129,7 +129,7 @@ create_transfer(libusb_device_handle *handle, size_t length, bool out)
 		/* Bulk IN */
 		libusb_fill_bulk_transfer(transfer,
 			handle,
-			0x81 /*ep*/,
+			isoc ? 0x82 : 0x81,
 			buf,
 			length,
 			read_callback,
@@ -150,6 +150,7 @@ int main(int argc, char **argv)
 	bool sync = false;
 	bool show_help = false;
 	bool send = false;
+	bool isoc = false;
 
 	/* Parse options */
 	while ((c = getopt(argc, argv, "siohl:")) > 0) {
@@ -169,6 +170,9 @@ int main(int argc, char **argv)
 			break;
 		case 'h':
 			show_help = true;
+			break;
+		case 'i':
+			isoc = true;
 			break;
 		default:
 			printf("Invalid option -%c\n", c);
@@ -226,7 +230,7 @@ int main(int argc, char **argv)
 		/* Asynchronous */
 		for (i = 0; i < 32; i++) {
 			struct libusb_transfer *transfer =
-				create_transfer(handle, buflen, send);
+				create_transfer(handle, buflen, send, isoc);
 			libusb_submit_transfer(transfer);
 		}
 
@@ -253,7 +257,7 @@ int main(int argc, char **argv)
 		do {
 			if (send) {
 				/* Send data to the device */
-				res = libusb_bulk_transfer(handle, 0x01,
+				res = libusb_bulk_transfer(handle, isoc ? 0x02 : 0x01,
 					buf, buflen, &actual_length, 100000);
 				if (res < 0) {
 					fprintf(stderr, "bulk transfer (out): %s\n", libusb_error_name(res));
@@ -262,7 +266,7 @@ int main(int argc, char **argv)
 			}
 			else {
 				/* Receive data from the device */
-				res = libusb_bulk_transfer(handle, 0x81,
+				res = libusb_bulk_transfer(handle, isoc ? 0x82 : 0x81,
 					buf, buflen, &actual_length, 100000);
 				if (res < 0) {
 					fprintf(stderr, "bulk transfer (in): %s\n", libusb_error_name(res));
