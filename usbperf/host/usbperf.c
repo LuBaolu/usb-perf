@@ -1,24 +1,8 @@
 /*
- * Libusb Bulk Endpoint Test for M-Stack
+ * Libusb performance Test for g_zero gadget
  *
  * This file may be used by anyone for any purpose and may be used as a
- * starting point making your own application using M-Stack.
- *
- * It is worth noting that M-Stack itself is not under the same license as
- * this file.  See the top-level README.txt for more information.
- *
- * M-Stack is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  For details, see sections 7, 8, and 9
- * of the Apache License, version 2.0 which apply to this file.  If you have
- * purchased a commercial license for this software from Signal 11 Software,
- * your commerical license superceeds the information in this header.
- *
- * Alan Ott
- * Signal 11 Software
- * 2013-04-09
- *
- * Modified to include isoc transfer test as well.
+ * starting point making your own application using g_zero gadget.
  */
 
 /* C */
@@ -45,6 +29,8 @@
 
 #include <sys/time.h>
 #include <signal.h>
+static libusb_context *context = NULL;
+libusb_device_handle *handle;
 unsigned int packets;
 unsigned long long bytes;
 struct timeval start;
@@ -67,6 +53,10 @@ void int_handler(int signal) {
 	printf("packets/sec: %f\n", (double)packets/elapsed);
 	printf("bytes/sec: %f\n", (double)bytes/elapsed);
 	printf("MBit/sec: %f\n", (double)bytes/elapsed * 8 / 1000000);
+
+	libusb_attach_kernel_driver(handle, 0);
+        libusb_close(handle);
+        libusb_exit(context);
 
 	exit(1);
 }
@@ -140,11 +130,8 @@ create_transfer(libusb_device_handle *handle, size_t length, bool out)
 	return transfer;
 }
 
-static libusb_context *usb_context = NULL;
-
 int main(int argc, char **argv)
 {
-	libusb_device_handle *handle;
 	int i;
 	int res = 0;
 	int c;
@@ -202,7 +189,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Init Libusb */
-	if (libusb_init(&usb_context))
+	if (libusb_init(&context))
 		return -1;
 
 	handle = libusb_open_device_with_vid_pid(NULL, 0x0525, 0xa4a0);
@@ -246,7 +233,7 @@ int main(int argc, char **argv)
 		}
 
 		while (1) {
-			res = libusb_handle_events(usb_context);
+			res = libusb_handle_events(context);
 			if (res < 0) {
 				/* There was an error. */
 				printf("read_thread(): libusb reports error # %d\n", res);
