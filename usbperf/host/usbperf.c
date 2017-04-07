@@ -54,9 +54,11 @@ void int_handler(int signal) {
 	printf("bytes/sec: %f\n", (double)bytes/elapsed);
 	printf("MBit/sec: %f\n", (double)bytes/elapsed * 8 / 1000000);
 
+#if 0
 	libusb_attach_kernel_driver(handle, 0);
         libusb_close(handle);
         libusb_exit(context);
+#endif
 
 	exit(1);
 }
@@ -151,7 +153,7 @@ int main(int argc, char **argv)
 	int actual_length;
 
 	/* Parse options */
-	while ((c = getopt(argc, argv, "cohl:")) > 0) {
+	while ((c = getopt(argc, argv, "c:h:l:")) != EOF) {
 		switch (c) {
 		case 'c':
 			res = parse_num(&testcase, optarg);
@@ -268,18 +270,7 @@ int main(int argc, char **argv)
 				fprintf(stderr, "bulk transfer (out): %s\n", libusb_error_name(res));
 				return 1;
 			}
-#if 0
-			}
-			else {
-				/* Receive data from the device */
-				res = libusb_bulk_transfer(handle, 0x81,
-					buf, buflen, &actual_length, 100000);
-				if (res < 0) {
-					fprintf(stderr, "bulk transfer (in): %s\n", libusb_error_name(res));
-					return 1;
-				}
-			}
-#endif
+
 			packets++;
 			bytes += actual_length;
 		} while (res >= 0);
