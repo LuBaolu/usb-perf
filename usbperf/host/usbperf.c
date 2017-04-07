@@ -211,9 +211,22 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
+	libusb_detach_kernel_driver(handle, 0);
+	res = libusb_set_configuration(handle, 3);
+	if (res < 0) {
+		perror("set configuration");
+		return 1;
+	}
+
 	res = libusb_claim_interface(handle, 0);
 	if (res < 0) {
 		perror("claim interface");
+		return 1;
+	}
+
+	res = libusb_set_interface_alt_setting(handle, 0, 1);
+	if (res < 0) {
+		perror("set alt interface");
 		return 1;
 	}
 
