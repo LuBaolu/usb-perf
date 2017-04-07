@@ -35,9 +35,8 @@ unsigned int packets;
 unsigned long long bytes;
 struct timeval start;
 int seq = -1;
-int test_case = 1;
-
-int buflen = 64; /* Overwritten by command line param */
+unsigned int testcase = 1;
+unsigned int buflen = 64;
 
 void int_handler(int signal) {
 	struct timeval end;
@@ -131,13 +130,23 @@ create_transfer(libusb_device_handle *handle, size_t length, bool out)
 	return transfer;
 }
 
+static int parse_num(unsigned *num, const char *str)
+{
+	unsigned long val;
+	char *end;
+
+	errno = 0;
+	val = strtoul(str, &end, 0);
+	if (errno || *end || val > UINT_MAX)
+		return -1;
+	*num = val;
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	int i, c, res = 0;
 	bool show_help = false;
-#if 0
-	bool send = false;
-#endif
 	unsigned char *buf;
 	int actual_length;
 
@@ -145,20 +154,15 @@ int main(int argc, char **argv)
 	while ((c = getopt(argc, argv, "cohl:")) > 0) {
 		switch (c) {
 		case 'c':
-			test_case = atoi(optarg);
+			res = parse_num(&testcase, optarg);
+			if (res < 0)
+				show_help = true;
 			break;
 		case 'l':
-			buflen = atoi(optarg);
-			if (buflen <= 0) {
-				fprintf(stderr, "Invalid length\n");
-				return 1;
-			}
+			res = parse_num(&buflen, optarg);
+			if (res < 0)
+				show_help = true;
 			break;
-#if 0
-		case 'o':
-			send = true;
-			break;
-#endif
 		case 'h':
 			show_help = true;
 			break;
@@ -225,10 +229,10 @@ int main(int argc, char **argv)
 	gettimeofday(&start, NULL);
 	signal(SIGINT, int_handler);
 	
-	printf("TEST CASE %d\n", test_case);
+	printf("TEST CASE %d\n", testcase);
 	printf("Using transfer size of: %d\n", buflen);
 
-	switch (test_case) {
+	switch (testcase) {
 	case 1: /* async bulk out */
 		for (i = 0; i < 32; i++) {
 			struct libusb_transfer *transfer =
