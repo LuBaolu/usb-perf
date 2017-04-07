@@ -35,6 +35,7 @@ unsigned int packets;
 unsigned long long bytes;
 struct timeval start;
 int seq = -1;
+int test_case = 1;
 
 int buflen = 64; /* Overwritten by command line param */
 
@@ -132,18 +133,19 @@ create_transfer(libusb_device_handle *handle, size_t length, bool out)
 
 int main(int argc, char **argv)
 {
-	int i;
-	int res = 0;
-	int c;
-	bool sync = false;
+	int i, c, res = 0;
 	bool show_help = false;
+#if 0
 	bool send = false;
+#endif
+	unsigned char *buf;
+	int actual_length;
 
 	/* Parse options */
-	while ((c = getopt(argc, argv, "siohl:")) > 0) {
+	while ((c = getopt(argc, argv, "cohl:")) > 0) {
 		switch (c) {
-		case 's':
-			sync = true;
+		case 'c':
+			test_case = atoi(optarg);
 			break;
 		case 'l':
 			buflen = atoi(optarg);
@@ -152,9 +154,11 @@ int main(int argc, char **argv)
 				return 1;
 			}
 			break;
+#if 0
 		case 'o':
 			send = true;
 			break;
+#endif
 		case 'h':
 			show_help = true;
 			break;
@@ -181,9 +185,10 @@ int main(int argc, char **argv)
 		fprintf(stderr,
 			"%s: Test USB Device Performance\n"
 			"\t-l <length>           length of transfer\n"
-			"\t-s                    use synchronous API\n"
-			"\t-o                    test OUT endpoint\n"
-			"\t-h                    show help\n",
+			"\t-h                    show help\n"
+			"\t-c <case>             test case\n"
+			"\t\t1: async bulk out\n"
+			"\t\t2: sync bulk out\n",
 			argv[0]);
 		return 1;
 	}
@@ -220,15 +225,14 @@ int main(int argc, char **argv)
 	gettimeofday(&start, NULL);
 	signal(SIGINT, int_handler);
 	
-	printf("%s packets\n", (send)? "Sending": "Receiving");
+	printf("TEST CASE %d\n", test_case);
 	printf("Using transfer size of: %d\n", buflen);
-	printf("using %s interface\n", (sync)? "synchronous": "asynchronous");
 
-	if (!sync) {
-		/* Asynchronous */
+	switch (test_case) {
+	case 1: /* async bulk out */
 		for (i = 0; i < 32; i++) {
 			struct libusb_transfer *transfer =
-				create_transfer(handle, buflen, send);
+				create_transfer(handle, buflen, true);
 			libusb_submit_transfer(transfer);
 		}
 
@@ -247,20 +251,20 @@ int main(int argc, char **argv)
 				}
 			}
 		}
-	}
-	else {
-		/* Synchronous */
-		unsigned char *buf = calloc(1, buflen);
-		int actual_length;
+
+		break;
+
+	case 2: /* sync bulk out */
+		buf = calloc(1, buflen);
+
 		do {
-			if (send) {
-				/* Send data to the device */
-				res = libusb_bulk_transfer(handle, 0x01,
-					buf, buflen, &actual_length, 100000);
-				if (res < 0) {
-					fprintf(stderr, "bulk transfer (out): %s\n", libusb_error_name(res));
-					return 1;
-				}
+			res = libusb_bulk_transfer(handle, 0x01,
+				buf, buflen, &actual_length, 100000);
+			if (res < 0) {
+				fprintf(stderr, "bulk transfer (out): %s\n", libusb_error_name(res));
+				return 1;
+			}
+#if 0
 			}
 			else {
 				/* Receive data from the device */
@@ -271,9 +275,16 @@ int main(int argc, char **argv)
 					return 1;
 				}
 			}
+#endif
 			packets++;
 			bytes += actual_length;
 		} while (res >= 0);
+
+		break;
+	default:
+		perror("unknown test case");
+		break;
 	}
+
 	return 0;
 }
