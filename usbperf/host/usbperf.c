@@ -30,6 +30,7 @@ libusb_device_handle *handle;
 unsigned int packets;
 unsigned long long bytes;
 struct timeval start;
+struct timeval end;
 unsigned int testcase = 1;
 unsigned int buflen = 64;
 unsigned int iterations = 100;
@@ -44,7 +45,6 @@ static void do_result(double elapsed) {
 }
 
 void int_handler(int signal) {
-	struct timeval end;
 	struct timeval res;
 	double elapsed;
 	
@@ -137,6 +137,8 @@ int main(int argc, char **argv)
 	bool show_help = false;
 	unsigned char *buf;
 	int actual_length;
+	struct timeval delta;
+	double elapsed;
 
 	/* Parse options */
 	while ((c = getopt(argc, argv, "i:c:h:l:")) != EOF) {
@@ -267,11 +269,20 @@ int main(int argc, char **argv)
 			iterations--;
 		} while (iterations > 0);
 
+		gettimeofday(&end, NULL);
+		timersub(&end, &start, &delta);
+		elapsed = delta.tv_sec + (double) delta.tv_usec / 1000000.0;
+		do_result(elapsed);
+
 		break;
 	default:
 		perror("unknown test case");
 		break;
 	}
+
+	libusb_attach_kernel_driver(handle, 0);
+	libusb_close(handle);
+	libusb_exit(context);
 
 	return 0;
 }
