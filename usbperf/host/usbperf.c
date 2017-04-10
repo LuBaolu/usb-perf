@@ -275,6 +275,33 @@ int main(int argc, char **argv)
 		do_result(elapsed);
 
 		break;
+
+	case 3: /* async bulk in */
+		gettimeofday(&start, NULL);
+		signal(SIGINT, int_handler);
+		for (i = 0; i < 32; i++) {
+			struct libusb_transfer *transfer =
+				create_transfer(handle, buflen, false);
+			libusb_submit_transfer(transfer);
+		}
+
+		while (1) {
+			res = libusb_handle_events(context);
+			if (res < 0) {
+				/* There was an error. */
+				printf("read_thread(): libusb reports error # %d\n", res);
+
+				/* Break out of this loop only on fatal error.*/
+				if (res != LIBUSB_ERROR_BUSY &&
+				    res != LIBUSB_ERROR_TIMEOUT &&
+				    res != LIBUSB_ERROR_OVERFLOW &&
+				    res != LIBUSB_ERROR_INTERRUPTED) {
+					break;
+				}
+			}
+		}
+
+		break;
 	default:
 		perror("unknown test case");
 		break;
