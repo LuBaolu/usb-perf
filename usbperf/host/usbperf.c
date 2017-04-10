@@ -224,11 +224,6 @@ int main(int argc, char **argv)
 	}
 
 	libusb_detach_kernel_driver(handle, 0);
-	res = libusb_set_configuration(handle, 3);
-	if (res < 0) {
-		perror("set configuration");
-		return 1;
-	}
 
 	res = libusb_claim_interface(handle, 0);
 	if (res < 0) {
