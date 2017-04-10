@@ -5,7 +5,6 @@
  * starting point making your own application using g_zero gadget.
  */
 
-/* C */
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -13,8 +12,6 @@
 #include <locale.h>
 #include <errno.h>
 #include <stdbool.h>
-
-/* Unix */
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -23,20 +20,28 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <wchar.h>
-
-/* GNU / LibUSB */
-#include "libusb.h"
-
 #include <sys/time.h>
 #include <signal.h>
+
+#include "libusb.h"
+
 static libusb_context *context = NULL;
 libusb_device_handle *handle;
 unsigned int packets;
 unsigned long long bytes;
 struct timeval start;
-int seq = -1;
 unsigned int testcase = 1;
 unsigned int buflen = 64;
+unsigned int iterations = 100;
+
+static void do_result(double elapsed) {
+	printf("\nelapsed: %.6f seconds\n", elapsed);
+	printf("packets: %u\n", packets);
+	printf("packets/sec: %f\n", (double)packets/elapsed);
+	printf("bytes/sec: %f\n", (double)bytes/elapsed);
+	printf("MBit/sec: %f\n", (double)bytes/elapsed * 8 / 1000000);
+	printf("Mbytes/sec: %f\n", (double)bytes/elapsed / 1000000);
+}
 
 void int_handler(int signal) {
 	struct timeval end;
@@ -47,18 +52,7 @@ void int_handler(int signal) {
 	
 	timersub(&end, &start, &res);
 	elapsed = res.tv_sec + (double) res.tv_usec / 1000000.0;
-	
-	printf("\nelapsed: %.6f seconds\n", elapsed);
-	printf("packets: %u\n", packets);
-	printf("packets/sec: %f\n", (double)packets/elapsed);
-	printf("bytes/sec: %f\n", (double)bytes/elapsed);
-	printf("MBit/sec: %f\n", (double)bytes/elapsed * 8 / 1000000);
-
-#if 0
-	libusb_attach_kernel_driver(handle, 0);
-        libusb_close(handle);
-        libusb_exit(context);
-#endif
+	do_result(elapsed);
 
 	exit(1);
 }
@@ -68,25 +62,17 @@ static void read_callback(struct libusb_transfer *transfer)
 	int res;
 	
 	if (transfer->status == LIBUSB_TRANSFER_COMPLETED) {
-		unsigned char pkt_seq = transfer->buffer[0];
-
 		packets++;
 		bytes += transfer->actual_length;
-		
-		seq = pkt_seq;
-	}
-	else if (transfer->status == LIBUSB_TRANSFER_CANCELLED) {
+	} else if (transfer->status == LIBUSB_TRANSFER_CANCELLED) {
 		printf("Cancelled\n");
 		return;
-	}
-	else if (transfer->status == LIBUSB_TRANSFER_NO_DEVICE) {
+	} else if (transfer->status == LIBUSB_TRANSFER_NO_DEVICE) {
 		printf("No Device\n");
 		return;
-	}
-	else if (transfer->status == LIBUSB_TRANSFER_TIMED_OUT) {
+	} else if (transfer->status == LIBUSB_TRANSFER_TIMED_OUT) {
 		printf("Timeout (normal)\n");
-	}
-	else {
+	} else {
 		printf("Unknown transfer code: %d\n", transfer->status);
 	}
 
@@ -153,8 +139,13 @@ int main(int argc, char **argv)
 	int actual_length;
 
 	/* Parse options */
-	while ((c = getopt(argc, argv, "c:h:l:")) != EOF) {
+	while ((c = getopt(argc, argv, "i:c:h:l:")) != EOF) {
 		switch (c) {
+		case 'i':
+			res = parse_num(&iterations, optarg);
+			if (res < 0)
+				show_help = true;
+			break;
 		case 'c':
 			res = parse_num(&testcase, optarg);
 			if (res < 0)
@@ -193,8 +184,7 @@ int main(int argc, char **argv)
 			"\t-l <length>           length of transfer\n"
 			"\t-h                    show help\n"
 			"\t-c <case>             test case\n"
-			"\t\t1: async bulk out\n"
-			"\t\t2: sync bulk out\n",
+			"\t-i <interations>      interations",
 			argv[0]);
 		return 1;
 	}
@@ -228,14 +218,13 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	gettimeofday(&start, NULL);
-	signal(SIGINT, int_handler);
-	
 	printf("TEST CASE %d\n", testcase);
 	printf("Using transfer size of: %d\n", buflen);
 
 	switch (testcase) {
 	case 1: /* async bulk out */
+		gettimeofday(&start, NULL);
+		signal(SIGINT, int_handler);
 		for (i = 0; i < 32; i++) {
 			struct libusb_transfer *transfer =
 				create_transfer(handle, buflen, true);
@@ -262,18 +251,21 @@ int main(int argc, char **argv)
 
 	case 2: /* sync bulk out */
 		buf = calloc(1, buflen);
+		gettimeofday(&start, NULL);
 
 		do {
 			res = libusb_bulk_transfer(handle, 0x01,
 				buf, buflen, &actual_length, 100000);
 			if (res < 0) {
-				fprintf(stderr, "bulk transfer (out): %s\n", libusb_error_name(res));
+				fprintf(stderr, "bulk transfer (out): %s\n",
+					libusb_error_name(res));
 				return 1;
 			}
 
 			packets++;
 			bytes += actual_length;
-		} while (res >= 0);
+			iterations--;
+		} while (iterations > 0);
 
 		break;
 	default:
