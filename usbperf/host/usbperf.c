@@ -44,6 +44,28 @@ static void do_result(double elapsed) {
 	printf("Mbytes/sec: %f\n", (double)bytes/elapsed / 1000000);
 }
 
+static void handle_async_events(void)
+{
+	int res;
+
+	while (1) {
+		res = libusb_handle_events(context);
+		if (res < 0) {
+			/* There was an error. */
+			printf("read_thread(): libusb reports error # %d\n", res);
+
+			/* Break out of this loop only on fatal error.*/
+			if (res != LIBUSB_ERROR_BUSY &&
+			    res != LIBUSB_ERROR_TIMEOUT &&
+			    res != LIBUSB_ERROR_OVERFLOW &&
+			    res != LIBUSB_ERROR_INTERRUPTED)
+				break;
+		}
+	}
+
+	return;
+}
+
 void int_handler(int signal) {
 	struct timeval res;
 	double elapsed;
@@ -233,24 +255,8 @@ int main(int argc, char **argv)
 			libusb_submit_transfer(transfer);
 		}
 
-		while (1) {
-			res = libusb_handle_events(context);
-			if (res < 0) {
-				/* There was an error. */
-				printf("read_thread(): libusb reports error # %d\n", res);
-
-				/* Break out of this loop only on fatal error.*/
-				if (res != LIBUSB_ERROR_BUSY &&
-				    res != LIBUSB_ERROR_TIMEOUT &&
-				    res != LIBUSB_ERROR_OVERFLOW &&
-				    res != LIBUSB_ERROR_INTERRUPTED) {
-					break;
-				}
-			}
-		}
-
+		handle_async_events();
 		break;
-
 	case 2: /* sync bulk out */
 		buf = calloc(1, buflen);
 		gettimeofday(&start, NULL);
@@ -275,7 +281,6 @@ int main(int argc, char **argv)
 		do_result(elapsed);
 
 		break;
-
 	case 3: /* async bulk in */
 		gettimeofday(&start, NULL);
 		signal(SIGINT, int_handler);
@@ -285,24 +290,8 @@ int main(int argc, char **argv)
 			libusb_submit_transfer(transfer);
 		}
 
-		while (1) {
-			res = libusb_handle_events(context);
-			if (res < 0) {
-				/* There was an error. */
-				printf("read_thread(): libusb reports error # %d\n", res);
-
-				/* Break out of this loop only on fatal error.*/
-				if (res != LIBUSB_ERROR_BUSY &&
-				    res != LIBUSB_ERROR_TIMEOUT &&
-				    res != LIBUSB_ERROR_OVERFLOW &&
-				    res != LIBUSB_ERROR_INTERRUPTED) {
-					break;
-				}
-			}
-		}
-
+		handle_async_events();
 		break;
-
 	case 4: /* sync bulk in */
 		buf = calloc(1, buflen);
 		gettimeofday(&start, NULL);
