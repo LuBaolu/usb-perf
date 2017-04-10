@@ -302,6 +302,32 @@ int main(int argc, char **argv)
 		}
 
 		break;
+
+	case 4: /* sync bulk in */
+		buf = calloc(1, buflen);
+		gettimeofday(&start, NULL);
+
+		do {
+			res = libusb_bulk_transfer(handle, 0x81,
+				buf, buflen, &actual_length, 100000);
+			if (res < 0) {
+				fprintf(stderr, "bulk transfer (in): %s\n",
+					libusb_error_name(res));
+				return 1;
+			}
+
+			packets++;
+			bytes += actual_length;
+			iterations--;
+		} while (iterations > 0);
+
+		gettimeofday(&end, NULL);
+		timersub(&end, &start, &delta);
+		elapsed = delta.tv_sec + (double) delta.tv_usec / 1000000.0;
+		do_result(elapsed);
+
+		break;
+
 	default:
 		perror("unknown test case");
 		break;
