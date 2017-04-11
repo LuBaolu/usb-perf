@@ -22,6 +22,7 @@
 #include <wchar.h>
 #include <sys/time.h>
 #include <signal.h>
+#include <linux/usb/functionfs.h>
 
 #include "libusb.h"
 
@@ -34,6 +35,15 @@ struct timeval end;
 unsigned int testcase = 1;
 unsigned int buflen = 64;
 unsigned int iterations = 100;
+
+#define ISOC_LATENCY_MAGIC	0xabadbeef
+struct isoc_time_stamp {
+	__u32		magic;
+	__u32		out;	/* 0 - isoc in; 1 - isoc out */
+	struct timeval	cp_01;	/* application check point */
+	struct timeval	cp_02;	/* usbcore check point */
+	struct timeval	cp_03;	/* firmware check point */
+};
 
 static void do_result(double elapsed) {
 	printf("\nelapsed: %.6f seconds\n", elapsed);
@@ -147,9 +157,14 @@ create_isoc_transfer(libusb_device_handle *handle,
 {
 	struct libusb_transfer *transfer;
 	unsigned char *buf;
+	struct isoc_time_stamp *stamp;
 
 	/* Set up the transfer object. */
 	buf = calloc(1, length);
+	stamp = (struct isoc_time_stamp *)buf;
+	stamp->magic = ISOC_LATENCY_MAGIC;
+	stamp->out = out;
+	gettimeofday(&stamp->cp_01, NULL);
 	transfer = libusb_alloc_transfer(isoc_packets);
 	if (out)
 		libusb_fill_iso_transfer(transfer,

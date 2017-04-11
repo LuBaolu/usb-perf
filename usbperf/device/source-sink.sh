@@ -6,7 +6,7 @@ ISOC_MAXBURST=0
 ISOC_MULT=0
 ISOC_MAXPACKET=1024
 ISOC_QLEN=32
-PATTERN=0
+PATTERN=2
 
 modprobe libcomposite
 cd /sys/kernel/config/usb_gadget
