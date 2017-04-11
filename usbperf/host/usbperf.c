@@ -107,7 +107,9 @@ static void read_callback(struct libusb_transfer *transfer)
 
 
 static struct libusb_transfer *
-create_transfer(libusb_device_handle *handle, size_t length, bool out)
+create_transfer(libusb_device_handle *handle,
+			size_t length,
+			bool out)
 {
 	struct libusb_transfer *transfer;
 	unsigned char *buf;
@@ -115,8 +117,7 @@ create_transfer(libusb_device_handle *handle, size_t length, bool out)
 	/* Set up the transfer object. */
 	buf = calloc(1, length);
 	transfer = libusb_alloc_transfer(0);
-	if (out) {
-		/* Bulk OUT */
+	if (out)
 		libusb_fill_bulk_transfer(transfer,
 			handle,
 			0x01 /*ep*/,
@@ -125,9 +126,7 @@ create_transfer(libusb_device_handle *handle, size_t length, bool out)
 			read_callback,
 			NULL/*cb data*/,
 			5000/*timeout*/);
-	}
-	else {
-		/* Bulk IN */
+	else
 		libusb_fill_bulk_transfer(transfer,
 			handle,
 			0x81 /*ep*/,
@@ -136,7 +135,43 @@ create_transfer(libusb_device_handle *handle, size_t length, bool out)
 			read_callback,
 			NULL/*cb data*/,
 			5000/*timeout*/);
-	}
+
+	return transfer;
+}
+
+static struct libusb_transfer *
+create_isoc_transfer(libusb_device_handle *handle,
+			size_t length,
+			bool out,
+			int isoc_packets)
+{
+	struct libusb_transfer *transfer;
+	unsigned char *buf;
+
+	/* Set up the transfer object. */
+	buf = calloc(1, length);
+	transfer = libusb_alloc_transfer(isoc_packets);
+	if (out)
+		libusb_fill_iso_transfer(transfer,
+			handle,
+			0x02,
+			buf,
+			length,
+			isoc_packets,
+			read_callback,
+			NULL/*cb data*/,
+			5000/*timeout*/);
+	else
+		libusb_fill_iso_transfer(transfer,
+			handle,
+			0x82,
+			buf,
+			length,
+			isoc_packets,
+			read_callback,
+			NULL/*cb data*/,
+			5000/*timeout*/);
+
 	return transfer;
 }
 
@@ -311,7 +346,18 @@ int main(int argc, char **argv)
 		do_result(elapsed);
 
 		break;
+	case 5: /* isoc out */
+		gettimeofday(&start, NULL);
+		signal(SIGINT, int_handler);
+		for (i = 0; i < 32; i++) {
+			struct libusb_transfer *transfer =
+				create_isoc_transfer(handle, buflen, true, 1);
+			libusb_submit_transfer(transfer);
+		}
 
+		handle_async_events();
+
+		break;
 	default:
 		perror("unknown test case");
 		break;
