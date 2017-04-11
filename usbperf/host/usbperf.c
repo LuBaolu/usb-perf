@@ -358,6 +358,17 @@ int main(int argc, char **argv)
 		handle_async_events();
 
 		break;
+	case 6: /* isoc in */
+		gettimeofday(&start, NULL);
+		signal(SIGINT, int_handler);
+		for (i = 0; i < 32; i++) {
+			struct libusb_transfer *transfer =
+				create_isoc_transfer(handle, buflen, false, 1);
+			libusb_submit_transfer(transfer);
+		}
+
+		handle_async_events();
+		break;
 	default:
 		perror("unknown test case");
 		break;
