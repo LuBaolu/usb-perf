@@ -45,6 +45,30 @@ struct isoc_time_stamp {
 	struct timeval	cp_03;	/* firmware check point */
 };
 
+static void reinit_iso_out_data(struct libusb_transfer *transfer)
+{
+	struct  isoc_time_stamp *stamp;
+
+	stamp = (struct isoc_time_stamp *)transfer->buffer;
+	stamp->magic = ISOC_LATENCY_MAGIC;
+	stamp->out = 1;
+	gettimeofday(&stamp->cp_01, NULL);
+}
+
+static void check_iso_in_data(struct libusb_transfer *transfer)
+{
+	struct  isoc_time_stamp *stamp;
+	struct  timeval delta;
+
+	stamp = (struct isoc_time_stamp *)transfer->buffer;
+	gettimeofday(&stamp->cp_01, NULL);
+	timersub(&stamp->cp_01, &stamp->cp_03, &delta);
+	printf("isoc_in: magic %x out %d elapsed(us) %ld\n",
+		stamp->magic,
+		stamp->out,
+		delta.tv_sec * 1000000 + delta.tv_usec);
+}
+
 static void do_result(double elapsed) {
 	printf("\nelapsed: %.6f seconds\n", elapsed);
 	printf("packets: %u\n", packets);
@@ -92,6 +116,17 @@ void int_handler(int signal) {
 static void read_callback(struct libusb_transfer *transfer)
 {
 	int res;
+
+	switch (transfer->endpoint) {
+	case 0x02: /* isoc out */
+		reinit_iso_out_data(transfer);
+		break;
+	case 0x82: /* isoc in */
+		check_iso_in_data(transfer);
+		break;
+	default:
+		break;
+	}
 	
 	if (transfer->status == LIBUSB_TRANSFER_COMPLETED) {
 		packets++;
@@ -157,14 +192,9 @@ create_isoc_transfer(libusb_device_handle *handle,
 {
 	struct libusb_transfer *transfer;
 	unsigned char *buf;
-	struct isoc_time_stamp *stamp;
 
 	/* Set up the transfer object. */
 	buf = calloc(1, length);
-	stamp = (struct isoc_time_stamp *)buf;
-	stamp->magic = ISOC_LATENCY_MAGIC;
-	stamp->out = out;
-	gettimeofday(&stamp->cp_01, NULL);
 	transfer = libusb_alloc_transfer(isoc_packets);
 	if (out)
 		libusb_fill_iso_transfer(transfer,
@@ -367,6 +397,7 @@ int main(int argc, char **argv)
 		for (i = 0; i < 32; i++) {
 			struct libusb_transfer *transfer =
 				create_isoc_transfer(handle, buflen, true, 1);
+			reinit_iso_out_data(transfer);
 			libusb_submit_transfer(transfer);
 		}
 
