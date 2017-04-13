@@ -39,6 +39,7 @@ unsigned int isoc_qlen = 1;
 unsigned int bulk_qlen = 32;
 
 #define ISOC_LATENCY_MAGIC	0xabadbeef
+#define TIMEVAL_TO_DOUBLE(t)	((t)->tv_sec * 1000000 + (t)->tv_usec)
 struct isoc_time_stamp {
 	__u32		magic;
 	__u32		out;	/* 0 - isoc in; 1 - isoc out */
@@ -60,15 +61,19 @@ static void reinit_iso_out_data(struct libusb_transfer *transfer)
 static void check_iso_in_data(struct libusb_transfer *transfer)
 {
 	struct  isoc_time_stamp *stamp;
-	struct  timeval delta;
+	struct  timeval t, s, h;
 
 	stamp = (struct isoc_time_stamp *)transfer->buffer;
 	gettimeofday(&stamp->cp_01, NULL);
-	timersub(&stamp->cp_01, &stamp->cp_03, &delta);
-	printf("isoc_in: magic %x out %d elapsed(us) %ld\n",
+	timersub(&stamp->cp_01, &stamp->cp_03, &t);
+	timersub(&stamp->cp_01, &stamp->cp_02, &s);
+	timersub(&stamp->cp_02, &stamp->cp_03, &h);
+	printf("isoc_in: magic %x out %d total(us) %ld hardware(us) %ld software(us) %ld\n",
 		stamp->magic,
 		stamp->out,
-		delta.tv_sec * 1000000 + delta.tv_usec);
+		TIMEVAL_TO_DOUBLE(&t),
+		TIMEVAL_TO_DOUBLE(&h),
+		TIMEVAL_TO_DOUBLE(&s));
 }
 
 static void do_result(double elapsed) {
