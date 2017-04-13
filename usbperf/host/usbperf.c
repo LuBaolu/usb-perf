@@ -221,6 +221,7 @@ create_isoc_transfer(libusb_device_handle *handle,
 			NULL/*cb data*/,
 			5000/*timeout*/);
 
+	libusb_set_iso_packet_lengths(transfer, length/isoc_packets);
 	return transfer;
 }
 
