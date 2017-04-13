@@ -33,4 +33,5 @@ echo $ISOC_QLEN > functions/SourceSink.usb0/iso_qlen
 echo $PATTERN > functions/SourceSink.usb0/pattern
 
 ln -s functions/SourceSink.usb0 configs/c.1/
+sleep 2
 echo `ls /sys/class/udc` > UDC
