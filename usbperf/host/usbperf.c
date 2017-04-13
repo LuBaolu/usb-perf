@@ -47,19 +47,16 @@ struct isoc_time_stamp {
 
 static void reinit_iso_out_data(struct libusb_transfer *transfer)
 {
-#if 0
 	struct  isoc_time_stamp *stamp;
 
 	stamp = (struct isoc_time_stamp *)transfer->buffer;
 	stamp->magic = ISOC_LATENCY_MAGIC;
 	stamp->out = 1;
 	gettimeofday(&stamp->cp_01, NULL);
-#endif
 }
 
 static void check_iso_in_data(struct libusb_transfer *transfer)
 {
-#if 0
 	struct  isoc_time_stamp *stamp;
 	struct  timeval delta;
 
@@ -70,7 +67,6 @@ static void check_iso_in_data(struct libusb_transfer *transfer)
 		stamp->magic,
 		stamp->out,
 		delta.tv_sec * 1000000 + delta.tv_usec);
-#endif
 }
 
 static void do_result(double elapsed) {
