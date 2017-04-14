@@ -35,7 +35,8 @@ struct timeval end;
 unsigned int testcase = 1;
 unsigned int buflen = 64;
 unsigned int iterations = 100;
-unsigned int isoc_qlen = 1;
+unsigned int isoc_in_qlen = 32;
+unsigned int isoc_out_qlen = 1;
 unsigned int bulk_qlen = 32;
 
 #define ISOC_LATENCY_MAGIC	0xabadbeef
@@ -402,7 +403,7 @@ int main(int argc, char **argv)
 	case 5: /* isoc out */
 		gettimeofday(&start, NULL);
 		signal(SIGINT, int_handler);
-		for (i = 0; i < isoc_qlen; i++) {
+		for (i = 0; i < isoc_out_qlen; i++) {
 			struct libusb_transfer *transfer =
 				create_isoc_transfer(handle, buflen, true, 1);
 			reinit_iso_out_data(transfer);
@@ -415,7 +416,7 @@ int main(int argc, char **argv)
 	case 6: /* isoc in */
 		gettimeofday(&start, NULL);
 		signal(SIGINT, int_handler);
-		for (i = 0; i < isoc_qlen; i++) {
+		for (i = 0; i < isoc_in_qlen; i++) {
 			struct libusb_transfer *transfer =
 				create_isoc_transfer(handle, buflen, false, 1);
 			libusb_submit_transfer(transfer);
